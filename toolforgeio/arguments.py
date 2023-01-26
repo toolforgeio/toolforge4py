@@ -13,11 +13,13 @@ class Arguments:
         for index in range(0, len(argv), 2):
             if index + 1 >= len(argv):
                 break
-
             option = argv[index + 0]
             value = argv[index + 1]
 
-            options[option] = value
+            if not option.startswith("--"):
+                raise ValueError(f"unrecognized option {option}")
+
+            options[option[2:]] = value
 
         return Arguments(options)
 
