@@ -1,16 +1,20 @@
 from hashlib import md5
-from typing import BinaryIO
+from typing import BinaryIO, TextIO
+from io import TextIOWrapper
+from os import SEEK_SET
 
 import requests
-from openpyxl import load_workbook
-from pandas import read_excel, read_csv
+import openpyxl
+import xlrd
+import chardet
+
+from pandas import read_excel, read_csv, DataFrame
 
 XLSX_MAGIC_NUMBER = b"\x50\x4B"
 
 XLS_MAGIC_NUMBER = b"\xD0\xCF"
 
-
-def _first_chunk_to_extension(chunk: bytes):
+def _first_chunk_to_extension(chunk: bytes) -> str:
     """
     Returns the file extension of the file being downloaded based on the first few bytes of the
     file. This is not perfect across all files, but among spreadsheet files, it works just fine.
@@ -26,7 +30,49 @@ def _first_chunk_to_extension(chunk: bytes):
         return "csv"
 
 
-def read_input_spreadsheet_data_frame(url: str, prefix="/tmp"):
+UTF_8_BOM = b"\xEE\xBB\xBF"
+
+UTF_16_BE_BOM = b"\xFE\xFF"
+
+UTF_16_LE_BOM = b"\xFF\xFE"
+
+def _decode(f: BinaryIO, default_encoding="utf-8", min_confidence=0.8, errors="ignore") -> TextIO:
+    """
+    Decodes the given binary stream into a text stream while ignoring BOMs and detecting character
+    sets automatically.
+
+    :param f: The binary stream to decode. Must be seekable.
+    :param default_encoding: The default encoding to use if there is no confident match
+    :param min_confidence: The minimum confidence to accept in detected character set
+    :param errors: How to handle unicode decode errors
+    :return: A
+    """
+    chunk = f.read(3)
+
+    # BOMs have no bearing on the actual content. For example, Excel's "Export to UTF-8 CSV"
+    # function prepends a UTF-16 BE BOM on many machines, including the authors. Ignore.
+    detected_bom = b''
+    for bom in [ UTF_8_BOM, UTF_16_LE_BOM, UTF_16_BE_BOM ]:
+        if chunk.startswith(bom):
+            if len(bom) < len(chunk):
+                f.seek(len(bom), SEEK_SET)
+            detected_bom = bom
+            break
+
+    chunk = f.read(128 * 1024)
+
+    f.seek(len(detected_bom), SEEK_SET)
+
+    detected_encoding = chardet.detect(chunk)
+    if detected_encoding["confidence"] < min_confidence:
+        the_encoding = default_encoding
+    else:
+        the_encoding = detected_encoding["encoding"]
+
+    return TextIOWrapper(f, encoding=the_encoding, errors=errors)
+
+
+def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
     """
     Downloads a spreadsheet file from the given url and returns a pandas dataframe loaded from the
     resulting data. The type of the spreadsheet is detected automatically, and may be either CSV,
@@ -42,7 +88,7 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp"):
 
     if url.startswith("file://"):
         with open(url[7:], "rb") as fin:
-            chunk = fin.read(2)
+            chunk = fin.read(4096)
             extension = _first_chunk_to_extension(chunk)
             filepath = prefix + "/" + filename + "." + extension
             with open(filepath, "wb") as fout:
@@ -62,14 +108,20 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp"):
     else:
         raise ValueError("Unrecognized url protocol", url)
 
-    if extension in ("xls", "xlsx"):
-        wb = load_workbook(filepath)
+    if extension == "xlsx":
+        wb = openpyxl.load_workbook(filepath)
         active_sheet_name = wb.active.title
-        print(f"Found Excel workbook, processing active sheet {active_sheet_name}...")
+        print(f"Found Excel XLSX workbook, processing active sheet {active_sheet_name}...")
+        return read_excel(filepath, sheet_name=active_sheet_name)
+    elif extension == "xls":
+        wb = xlrd.open_workbook(filepath)
+        active_sheet_name = [ s.name for s in wb.sheets() if s.sheet_visible == 1 ][0]
+        print(f"Found Excel XLS workbook, processing active sheet {active_sheet_name}...")
         return read_excel(filepath, sheet_name=active_sheet_name)
     elif extension == "csv":
-        print(f"Found CSV file...")
-        return read_csv(filepath)
+        with _decode(open(filepath, "rb")) as f:
+            result = read_csv(f)
+        return result
     else:
         raise ValueError("Unrecognized file extension", extension)
 

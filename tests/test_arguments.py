@@ -4,6 +4,7 @@ import datetime
 from toolforgeio.arguments import *
 from toolforgeio.manifest import *
 
+
 class ArgumentsTests(unittest.TestCase):
     def test_parse(self):
         args = Arguments.parse_from_argv(["python3", "--Alpha", "alpha", "--Bravo.xlsx", "bravo"])

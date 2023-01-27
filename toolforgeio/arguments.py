@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from .manifest import Manifest, ToolManifest
@@ -5,7 +7,7 @@ from .manifest import Manifest, ToolManifest
 
 class Arguments:
     @staticmethod
-    def parse_from_argv(argv):
+    def parse_from_argv(argv) -> Arguments:
         argv = argv[1:]
 
         options = {}
@@ -25,20 +27,20 @@ class Arguments:
 
     options = None
 
-    def __init__(self, options):
+    def __init__(self, options: dict):
         self.options = options
 
-    def get(self, option, default=None):
+    def get(self, option, default=None) -> any:
         return self.options.get(option, default)
 
-    def autospecialize(self):
+    def autospecialize(self) -> Arguments:
         """
         Discover the manifest, then specialize this Arguments
         :return: A new Arguments instance with specialized values
         """
         return self.specialize(Manifest.discover())
 
-    def specialize(self, manifest: Manifest):
+    def specialize(self, manifest: Manifest) -> Arguments:
         """
         Convert all parameters into their appropriate types as determined by the manifest.
 
