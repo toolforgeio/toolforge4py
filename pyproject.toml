@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "toolforgeio"
-version = "0.0.7"
+version = "0.0.8"
 description = "Library for building tools in the ToolForge Data Science tools ecosystem using Python"
 readme = "README.md"
 authors = [{ name = "Andy Boothe", email = "andy@toolforge.io" }]
