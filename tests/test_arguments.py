@@ -1,5 +1,5 @@
-import unittest
 import datetime
+import unittest
 
 from toolforgeio.arguments import *
 from toolforgeio.manifest import *
@@ -30,7 +30,9 @@ class ArgumentsTests(unittest.TestCase):
             [ToolManifestSlot("Input", "Input Description", ["txt", "csv", "xls", "xlsx"])],
             [ToolManifestSlot("Output", "Output Description", ["csv", "xlsx"])])
 
-        args = Arguments.parse_from_argv(["python3", "--IntParameter", "10", "--FloatParameter", "1.2", "--DateParameter", "2020-01-01", "--BooleanParameter", "true", "--StringParameter", "hello"]).specialize(manifest)
+        args = Arguments.parse_from_argv(
+            ["python3", "--IntParameter", "10", "--FloatParameter", "1.2", "--DateParameter", "2020-01-01",
+             "--BooleanParameter", "true", "--StringParameter", "hello"]).specialize(manifest)
 
         self.assertEqual(args.get("IntParameter"), 10)
         self.assertEqual(args.get("FloatParameter"), 1.2)

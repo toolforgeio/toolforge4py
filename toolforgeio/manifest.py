@@ -50,6 +50,7 @@ class ManifestEnvironmentVariable:
     def __str__(self):
         return f"ManifestEnvironmentVariable({self.name}, {self.description}, {self.required}, {self.default})"
 
+
 class ManifestEnvironment:
     @staticmethod
     def from_yaml(o):
@@ -163,7 +164,7 @@ class ToolManifestSlot:
         self.extensions = extensions
 
     def __eq__(self, other):
-        return (self.name==other.name
+        return (self.name == other.name
                 and self.description == other.description
                 and self.extensions == other.extensions)
 

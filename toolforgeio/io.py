@@ -1,18 +1,18 @@
 from hashlib import md5
-from typing import BinaryIO, TextIO
 from io import TextIOWrapper
 from os import SEEK_SET
+from typing import BinaryIO, TextIO
 
-import requests
-import openpyxl
-import xlrd
 import chardet
-
+import openpyxl
+import requests
+import xlrd
 from pandas import read_excel, read_csv, DataFrame
 
 XLSX_MAGIC_NUMBER = b"\x50\x4B"
 
 XLS_MAGIC_NUMBER = b"\xD0\xCF"
+
 
 def _first_chunk_to_extension(chunk: bytes) -> str:
     """
@@ -36,6 +36,7 @@ UTF_16_BE_BOM = b"\xFE\xFF"
 
 UTF_16_LE_BOM = b"\xFF\xFE"
 
+
 def _decode(f: BinaryIO, default_encoding="utf-8", min_confidence=0.8, errors="ignore") -> TextIO:
     """
     Decodes the given binary stream into a text stream while ignoring BOMs and detecting character
@@ -52,7 +53,7 @@ def _decode(f: BinaryIO, default_encoding="utf-8", min_confidence=0.8, errors="i
     # BOMs have no bearing on the actual content. For example, Excel's "Export to UTF-8 CSV"
     # function prepends a UTF-16 BE BOM on many machines, including the authors. Ignore.
     detected_bom = b''
-    for bom in [ UTF_8_BOM, UTF_16_LE_BOM, UTF_16_BE_BOM ]:
+    for bom in [UTF_8_BOM, UTF_16_LE_BOM, UTF_16_BE_BOM]:
         if chunk.startswith(bom):
             if len(bom) < len(chunk):
                 f.seek(len(bom), SEEK_SET)
@@ -83,6 +84,10 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
     :param prefix: A directory into which to place the downloaded file
     :return: A pandas dataframe containing the data from the spreadsheet
     """
+
+    # It turns out that the extension of the file when opened is significant,
+    # so to avoid the file copy we generate a filename only the fly as we
+    # download to reflect the expected file type.
 
     filename = md5(url.encode(encoding="utf-8")).hexdigest()
 
@@ -115,7 +120,7 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
         return read_excel(filepath, sheet_name=active_sheet_name)
     elif extension == "xls":
         wb = xlrd.open_workbook(filepath)
-        active_sheet_name = [ s.name for s in wb.sheets() if s.sheet_visible == 1 ][0]
+        active_sheet_name = [s.name for s in wb.sheets() if s.sheet_visible == 1][0]
         print(f"Found Excel XLS workbook, processing active sheet {active_sheet_name}...")
         return read_excel(filepath, sheet_name=active_sheet_name)
     elif extension == "csv":
@@ -126,11 +131,39 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
         raise ValueError("Unrecognized file extension", extension)
 
 
+def read_input_file(url, data: BinaryIO):
+    """
+    Download input data from the given URL to the given file-like object
+
+    :param url: The source from which to download the data
+    :param data: The destination to which to write the data
+    """
+    if url.startswith("file://"):
+        filepath = url[7:]
+        with open(filepath, "rb") as f:
+            while chunk := f.read(4096):
+                data.write(chunk)
+    elif url.startswith("http://") or url.startswith("https://"):
+        with requests.get(url, stream=True) as f:
+            for chunk in f.iter_content(4096):
+                data.write(chunk)
+    else:
+        raise ValueError(f"unrecognized protocol: {url}")
+
+
 def write_output_file(url, data: BinaryIO):
     """
     Uploads output data from the given file-like object to the given URL
 
     :param url: The destination to which to upload data
-    :param data: The data to upload
+    :param data: The source from which to read the data
     """
-    requests.put(url, data=data)
+    if url.startswith("file://"):
+        filepath = url[7:]
+        with open(filepath, "wb") as f:
+            while chunk := data.read(4096):
+                f.write(chunk)
+    elif url.startswith("http://") or url.startswith("https://"):
+        requests.put(url, data=data)
+    else:
+        raise ValueError(f"unrecognized protocol: {url}")
