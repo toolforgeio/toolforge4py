@@ -73,7 +73,7 @@ def _decode(f: BinaryIO, default_encoding="utf-8", min_confidence=0.8, errors="i
     return TextIOWrapper(f, encoding=the_encoding, errors=errors)
 
 
-def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
+def read_input_spreadsheet_data_frame(url: str, prefix="/tmp", sheet_hint=None) -> DataFrame:
     """
     Downloads a spreadsheet file from the given url and returns a pandas dataframe loaded from the
     resulting data. The type of the spreadsheet is detected automatically, and may be either CSV,
@@ -82,6 +82,7 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
 
     :param url: The URL from which to download the spreadsheet
     :param prefix: A directory into which to place the downloaded file
+    :param sheet_hint: If there are multiple sheets, use the named sheet if it exists
     :return: A pandas dataframe containing the data from the spreadsheet
     """
 
@@ -115,14 +116,30 @@ def read_input_spreadsheet_data_frame(url: str, prefix="/tmp") -> DataFrame:
 
     if extension == "xlsx":
         wb = openpyxl.load_workbook(filepath)
-        active_sheet_name = wb.active.title
-        print(f"Found Excel XLSX workbook, processing active sheet {active_sheet_name}...")
-        return read_excel(filepath, sheet_name=active_sheet_name)
+
+        chosen_sheet_name = None
+        if chosen_sheet_name is None:
+            if sheet_hint is not None and sheet_hint in wb.sheetnames:
+                chosen_sheet_name = sheet_hint
+        if chosen_sheet_name is None:
+            chosen_sheet_name = wb.active.title
+
+        print(f"Found Excel XLSX workbook, processing active sheet {chosen_sheet_name}...")
+        
+        return read_excel(filepath, sheet_name=chosen_sheet_name)
     elif extension == "xls":
         wb = xlrd.open_workbook(filepath)
-        active_sheet_name = [s.name for s in wb.sheets() if s.sheet_visible == 1][0]
-        print(f"Found Excel XLS workbook, processing active sheet {active_sheet_name}...")
-        return read_excel(filepath, sheet_name=active_sheet_name)
+
+        chosen_sheet_name = None
+        if chosen_sheet_name is None:
+            if sheet_hint is not None:
+                chosen_sheet_name = next(iter([s.name for s in wb.sheets() if s.name == sheet_hint]), None)
+        if chosen_sheet_name is None:
+            chosen_sheet_name = [s.name for s in wb.sheets() if s.sheet_visible == 1][0]
+
+        print(f"Found Excel XLS workbook, processing sheet {chosen_sheet_name}...")
+
+        return read_excel(filepath, sheet_name=chosen_sheet_name)
     elif extension == "csv":
         with _decode(open(filepath, "rb")) as f:
             result = read_csv(f)
