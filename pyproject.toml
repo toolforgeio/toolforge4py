@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "toolforgeio"
-version = "0.0.9"
+version = "0.0.10"
 description = "Library for building tools in the ToolForge Data Science tools ecosystem using Python"
 readme = "README.md"
 authors = [{ name = "Andy Boothe", email = "andy@toolforge.io" }]
@@ -17,12 +17,13 @@ classifiers = [
 keywords = ["toolforge", "toolforge.io"]
 # Some day, we should be able to sync requirements.txt to pyproject.toml...
 dependencies = [
-    "requests~=2.28.2",
-    "openpyxl~=3.0.10",
-    "pandas~=1.5.3",
-    "PyYAML~=6.0",
+    "requests~=2.32.0",
+    "openpyxl~=3.1.5",
+    "pandas~=2.2.3",
+    "PyYAML~=6.0.2",
     "xlrd~=2.0.1",
-    "chardet~=5.1.0",
+    "chardet~=5.2.0",
+    # A version of Tomli, the tomllib module, was added to the standard library in Python 3.11 via PEP 680
     'tomli; python_version < "3.11"'
 ]
 requires-python = ">=3.9"
