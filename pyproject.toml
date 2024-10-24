@@ -18,7 +18,7 @@ keywords = ["toolforge", "toolforge.io"]
 # Some day, we should be able to sync requirements.txt to pyproject.toml...
 dependencies = [
     "requests~=2.28.2",
-    "openpyxl~=3.0.10",
+    "openpyxl>=3.0.10,<3.2.0",
     "pandas~=1.5.3",
     "PyYAML~=6.0",
     "xlrd~=2.0.1",
